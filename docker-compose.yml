@@ -1,64 +1,84 @@
 version: '3'
 services:
-  billing-service:
-    build: billing_service
+  billing_service:
+    depends_on:
+      - kafka
+    build:
+      context: .
+      dockerfile: ./billing_service/Dockerfile
     volumes:
-      - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
-  crm-service:
+
+  crm_service:
     build: crm_service
     volumes:
       - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
-  customer-service:
+
+  customer_service:
     build: customer_service
     volumes:
-      - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
-  gateway-api:
+
+  gateway_api:
     build: gateway_api
     ports:
       - "5000:5000"
     volumes:
       - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
-  inventory-service:
+
+  inventory_service:
     build: inventory_service
     volumes:
       - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
-  msg-service:
+
+  msg_service:
     build: msg_service
     volumes:
       - .:/app
       - logvolume01:/var/log
-  order-service:
+  order_service:
     build: order_service
     volumes:
       - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
-  product-service:
+
+  product_service:
     build: product_service
     volumes:
       - .:/app
       - logvolume01:/var/log
-    links:
-      - redis
+
   redis:
-    image: redis
+    image: redis:6.2
     ports:
       - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.1.2
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.1.2
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      ## Note separation of internal and external listener.
+      ## See https://rmoff.net/2018/08/02/kafka-listeners-explained/
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT, INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:9092, INTERNAL://kafka:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
 volumes:
   logvolume01: {}

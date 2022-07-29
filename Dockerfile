@@ -1,7 +1,8 @@
 FROM librdkafka:latest as librdkafka
 FROM python:3
 
-ENV SERVICE_NAME=inventory_service
+ARG SERVICE_NAME
+ENV SERVICE_NAME=${SERVICE_NAME}
 
 WORKDIR /usr/local/lib
 COPY --from=librdkafka /usr/local/lib/librdkafka* ./

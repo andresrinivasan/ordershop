@@ -3,9 +3,8 @@ import json
 
 import requests
 
-from common.utils import log_info, log_error
+from lib.utils import log_info, log_error
 from lib.event_store import EventStore
-
 
 store = EventStore()
 
@@ -19,10 +18,11 @@ Welcome to Ordershop.
 
 Cheers""".format(msg_data['name'])
 
-        requests.post('http://msg-service:5000/email', json={
-            "to": msg_data['email'],
-            "msg": msg
-        })
+        requests.post('http://msg-service:5000/email',
+                      json={
+                          "to": msg_data['email'],
+                          "msg": msg
+                      })
     except Exception as e:
         log_error(e)
 
@@ -36,10 +36,11 @@ Good bye, hope to see you soon again at Ordershop.
 
 Cheers""".format(msg_data['name'])
 
-        requests.post('http://msg-service:5000/email', json={
-            "to": msg_data['email'],
-            "msg": msg
-        })
+        requests.post('http://msg-service:5000/email',
+                      json={
+                          "to": msg_data['email'],
+                          "msg": msg
+                      })
     except Exception as e:
         log_error(e)
 
@@ -48,18 +49,23 @@ def order_created(item):
     try:
         msg_data = json.loads(item['entity'])
         customer = store.find_one('customer', msg_data['customer_id'])
-        products = [store.find_one('product', product_id) for product_id in msg_data['product_ids']]
+        products = [
+            store.find_one('product', product_id)
+            for product_id in msg_data['product_ids']
+        ]
         msg = """Dear {}!
 
 Thank you for buying following {} products from Ordershop:
 {}
 
-Cheers""".format(customer['name'], len(products), ", ".join([product['name'] for product in products]))
+Cheers""".format(customer['name'], len(products),
+                 ", ".join([product['name'] for product in products]))
 
-        requests.post('http://msg-service:5000/email', json={
-            "to": customer['email'],
-            "msg": msg
-        })
+        requests.post('http://msg-service:5000/email',
+                      json={
+                          "to": customer['email'],
+                          "msg": msg
+                      })
     except Exception as e:
         log_error(e)
 

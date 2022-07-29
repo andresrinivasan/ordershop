@@ -7,9 +7,8 @@ import uuid
 from flask import request
 from flask import Flask
 
-from common.utils import check_rsp_code
+from lib.utils import check_rsp_code
 from lib.event_store import EventStore
-
 
 app = Flask(__name__)
 store = EventStore()
@@ -56,7 +55,8 @@ def get_unbilled():
     orders = store.find_all('order')
 
     for billing in billings:
-        to_remove = list(filter(lambda x: x['id'] == billing['order_id'], orders))
+        to_remove = list(
+            filter(lambda x: x['id'] == billing['order_id'], orders))
         orders.remove(to_remove[0])
 
     return json.dumps([item for item in orders])
@@ -70,7 +70,8 @@ def post():
     if not isinstance(values, list):
         values = [values]
 
-    rsp = requests.post('http://inventory-service:5000/decr_from_order', json=values)
+    rsp = requests.post('http://inventory-service:5000/decr_from_order',
+                        json=values)
     check_rsp_code(rsp)
 
     if not rsp.json():
@@ -79,9 +80,12 @@ def post():
     order_ids = []
     for value in values:
         try:
-            new_order = create_order(value['product_ids'], value['customer_id'])
+            new_order = create_order(value['product_ids'],
+                                     value['customer_id'])
         except KeyError:
-            raise ValueError("missing mandatory parameter 'product_ids' and/or 'customer_id'")
+            raise ValueError(
+                "missing mandatory parameter 'product_ids' and/or 'customer_id'"
+            )
 
         # trigger event
         store.publish('order', 'created', **new_order)
@@ -96,16 +100,19 @@ def put(order_id):
 
     order = store.find_one('order', order_id)
     for product_id in order['product_ids']:
-        rsp = requests.post('http://inventory-service:5000/incr/{}'.format(product_id))
+        rsp = requests.post(
+            'http://inventory-service:5000/incr/{}'.format(product_id))
         check_rsp_code(rsp)
 
     value = request.get_json()
     try:
         order = create_order(value['product_ids'], value['customer_id'])
     except KeyError:
-        raise ValueError("missing mandatory parameter 'product_ids' and/or 'customer_id'")
+        raise ValueError(
+            "missing mandatory parameter 'product_ids' and/or 'customer_id'")
 
-    rsp = requests.post('http://inventory-service:5000/decr_from_order', json=value)
+    rsp = requests.post('http://inventory-service:5000/decr_from_order',
+                        json=value)
     check_rsp_code(rsp)
 
     if not rsp.json():
@@ -117,7 +124,8 @@ def put(order_id):
     store.publish('order', 'updated', **order)
 
     for product_id in value['product_ids']:
-        rsp = requests.post('http://inventory-service:5000/decr/{}'.format(product_id))
+        rsp = requests.post(
+            'http://inventory-service:5000/decr/{}'.format(product_id))
         check_rsp_code(rsp)
 
     return json.dumps(True)
@@ -129,7 +137,8 @@ def delete(order_id):
     order = store.find_one('order', order_id)
     if order:
         for product_id in order['product_ids']:
-            rsp = requests.post('http://inventory-service:5000/incr/{}'.format(product_id))
+            rsp = requests.post(
+                'http://inventory-service:5000/incr/{}'.format(product_id))
             check_rsp_code(rsp)
 
         # trigger event

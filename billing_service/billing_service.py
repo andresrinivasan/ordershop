@@ -9,9 +9,8 @@ from flask import Flask
 
 import requests
 
-from common.utils import log_error, log_info
+from lib.utils import log_error, log_info
 from lib.event_store import EventStore
-
 
 app = Flask(__name__)
 store = EventStore()
@@ -35,17 +34,22 @@ def order_created(item):
     try:
         msg_data = json.loads(item['entity'])
         customer = store.find_one('customer', msg_data['customer_id'])
-        products = [store.find_one('product', product_id) for product_id in msg_data['product_ids']]
+        products = [
+            store.find_one('product', product_id)
+            for product_id in msg_data['product_ids']
+        ]
         msg = """Dear {}!
 
 Please transfer € {} with your favourite payment method.
 
-Cheers""".format(customer['name'], sum([int(product['price']) for product in products]))
+Cheers""".format(customer['name'],
+                 sum([int(product['price']) for product in products]))
 
-        requests.post('http://msg-service:5000/email', json={
-            "to": customer['email'],
-            "msg": msg
-        })
+        requests.post('http://msg-service:5000/email',
+                      json={
+                          "to": customer['email'],
+                          "msg": msg
+                      })
     except Exception as e:
         log_error(e)
 
@@ -55,17 +59,22 @@ def billing_created(item):
         msg_data = json.loads(item['entity'])
         order = store.find_one('order', msg_data['order_id'])
         customer = store.find_one('customer', order['customer_id'])
-        products = [store.find_one('product', product_id) for product_id in order['product_ids']]
+        products = [
+            store.find_one('product', product_id)
+            for product_id in order['product_ids']
+        ]
         msg = """Dear {}!
 
 We've just received € {} from you, thank you for your transfer.
 
-Cheers""".format(customer['name'], sum([int(product['price']) for product in products]))
+Cheers""".format(customer['name'],
+                 sum([int(product['price']) for product in products]))
 
-        requests.post('http://msg-service:5000/email', json={
-            "to": customer['email'],
-            "msg": msg
-        })
+        requests.post('http://msg-service:5000/email',
+                      json={
+                          "to": customer['email'],
+                          "msg": msg
+                      })
     except Exception as e:
         log_error(e)
 

@@ -1,3 +1,5 @@
+import os
+
 import functools
 import json
 import threading
@@ -5,6 +7,7 @@ import time
 import uuid
 
 from redis import StrictRedis
+from confluent_kafka import Producer, Consumer
 
 from lib.domain_model import DomainModel
 
@@ -19,6 +22,8 @@ class EventStore(object):
         self.subscribers = {}
         self.domain_model = DomainModel(self.redis)
 
+        self.kafka_producer = Producer(json.loads(os.environ["KAFKA_CONFIG"]))
+
     def publish(self, _topic, _action, **_entity):
         """
         Publish an event.
@@ -31,10 +36,16 @@ class EventStore(object):
         key = 'events:{{{0}}}_{1}'.format(_topic, _action)
         entry_id = '{0:.6f}'.format(time.time()).replace('.', '-')
 
+        self.kafka_producer.produce(key, {
+            'event_id': str(uuid.uuid4()),
+            'entity': json.dumps(_entity)
+        }, entry_id)
+
         return self.redis.xadd(key, {
             'event_id': str(uuid.uuid4()),
             'entity': json.dumps(_entity)
-        }, id=entry_id)
+        },
+                               id=entry_id)
 
     def subscribe(self, _topic, _action, _handler):
         """
@@ -99,9 +110,12 @@ class EventStore(object):
 
         :param _topic: The entity type.
         """
-        self.subscribe(_topic, 'created', functools.partial(self._entity_created, _topic))
-        self.subscribe(_topic, 'deleted', functools.partial(self._entity_deleted, _topic))
-        self.subscribe(_topic, 'updated', functools.partial(self._entity_updated, _topic))
+        self.subscribe(_topic, 'created',
+                       functools.partial(self._entity_created, _topic))
+        self.subscribe(_topic, 'deleted',
+                       functools.partial(self._entity_deleted, _topic))
+        self.subscribe(_topic, 'updated',
+                       functools.partial(self._entity_updated, _topic))
 
     def deactivate_entity_cache(self, _topic):
         """
@@ -109,9 +123,12 @@ class EventStore(object):
 
         :param _topic: The entity type.
         """
-        self.unsubscribe(_topic, 'created', functools.partial(self._entity_created, _topic))
-        self.unsubscribe(_topic, 'deleted', functools.partial(self._entity_deleted, _topic))
-        self.unsubscribe(_topic, 'updated', functools.partial(self._entity_updated, _topic))
+        self.unsubscribe(_topic, 'created',
+                         functools.partial(self._entity_created, _topic))
+        self.unsubscribe(_topic, 'deleted',
+                         functools.partial(self._entity_deleted, _topic))
+        self.unsubscribe(_topic, 'updated',
+                         functools.partial(self._entity_updated, _topic))
 
     def _find_all(self, _topic):
         """
@@ -120,6 +137,7 @@ class EventStore(object):
         :param _topic: The event topic, i.e name of entity.
         :return: A dict mapping id -> entity.
         """
+
         def _get_entities(_events):
             entities = map(lambda x: json.loads(x[1]['entity']), _events)
             return dict(map(lambda x: (x['id'], x), entities))
